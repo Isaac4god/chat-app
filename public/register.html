@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="A WhatsApp-style messaging app: register, pick a person and chat live.">
+    <meta name="theme-color" content="#0b0e14">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Chat">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <title>Register</title>
+</head>
+<body class="auth-page">
+    <main class="auth-wrap">
+        <div class="auth-card">
+            <div class="brand">
+                <span class="brand-mark" aria-hidden="true">&#9993;</span>
+                <span class="brand-name">Chat App</span>
+            </div>
+            <h1>Create account</h1>
+            <p class="subtitle">Sign up to start chatting.</p>
+
+            <form id="registerForm" novalidate>
+                <div class="field">
+                    <label for="fullName">Full name</label>
+                    <input type="text" name="fullName" id="fullName" class="entry" placeholder="Ada Lovelace" autocomplete="name">
+                </div>
+
+                <div class="field">
+                    <label for="gmail">Gmail</label>
+                    <input type="email" name="gmail" id="gmail" class="entry" placeholder="example@gmail.com" autocomplete="email">
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" class="entry" placeholder="At least 8 characters" autocomplete="new-password">
+                </div>
+
+                <div class="field">
+                    <label for="confirmPassword">Confirm password</label>
+                    <input type="password" name="confirmPassword" id="confirmPassword" class="entry" placeholder="Repeat your password" autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="submit">Create account</button>
+
+                <p class="message" id="message" role="status" aria-live="polite"></p>
+
+                <p class="switch">Already have an account? <a href="index.html">Log in</a></p>
+            </form>
+        </div>
+    </main>
+
+    <div class="install-banner hidden" id="installBanner" role="dialog" aria-label="Install app">
+        <div class="install-text">
+            <strong>Install Chat App</strong>
+            <span>Add it to your home screen and open it like a real app.</span>
+        </div>
+        <div class="install-actions">
+            <button type="button" class="btn-ghost" id="installDismiss">Not now</button>
+            <button type="button" class="btn-solid" id="installButton">Install</button>
+        </div>
+        <p class="install-help hidden" id="installHelp"></p>
+    </div>
+
+    <div class="update-note hidden" id="updateNote">
+        <span id="updateText"></span>
+        <button type="button" class="btn-solid small" id="updateButton">Reload</button>
+    </div>
+
+    <script src="js/validate.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/register.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>
