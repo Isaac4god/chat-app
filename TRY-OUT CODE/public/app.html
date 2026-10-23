@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="A WhatsApp-style messaging app: register, pick a person and chat live.">
+    <meta name="theme-color" content="#0b0e14">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Chat">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="css/styles.css">
+    <title>Chats</title>
+</head>
+<body class="chat-page">
+    <div class="chat-shell">
+
+        <!-- Sidebar: people + conversations -->
+        <aside class="sidebar" id="sidebar">
+            <header class="sidebar-head">
+                <div class="me">
+                    <span class="avatar" id="myAvatar">?</span>
+                    <div class="me-text">
+                        <strong id="myName">...</strong>
+                        <small id="myEmail"></small>
+                    </div>
+                </div>
+                <button type="button" class="icon-btn" id="logoutButton" title="Log out" aria-label="Log out">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 17l5-5-5-5"></path>
+                        <path d="M20 12H9"></path>
+                        <path d="M12 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6"></path>
+                    </svg>
+                </button>
+            </header>
+
+            <div class="search-wrap">
+                <input type="search" id="searchBox" class="entry" placeholder="Search people">
+            </div>
+
+            <nav class="tabs">
+                <button type="button" class="tab active" id="tabChats">Chats</button>
+                <button type="button" class="tab" id="tabPeople">People</button>
+            </nav>
+
+            <div class="people-tools hidden" id="peopleTools">
+                <label class="online-toggle">
+                    <input type="checkbox" id="onlineOnly">
+                    <span>Online only</span>
+                </label>
+                <span class="people-count" id="peopleCount"></span>
+            </div>
+
+            <div class="sidebar-body">
+                <ul class="list" id="conversationList"></ul>
+                <ul class="list hidden" id="peopleList"></ul>
+                <p class="empty hidden" id="sidebarEmpty"></p>
+            </div>
+
+            <footer class="sidebar-foot">
+                <span class="dot" id="liveDot" title="Connecting..."></span>
+                <span id="liveStatus">Connecting...</span>
+            </footer>
+        </aside>
+
+        <!-- Main: conversation -->
+        <section class="conversation">
+            <header class="conversation-head" id="conversationHead">
+                <button type="button" class="icon-btn only-mobile" id="backButton" title="Back" aria-label="Back">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M15 18l-6-6 6-6"></path>
+                    </svg>
+                </button>
+                <span class="avatar" id="peerAvatar">?</span>
+                <div class="peer-text">
+                    <strong id="peerName">Select someone to chat with</strong>
+                    <small id="peerStatus"></small>
+                </div>
+            </header>
+
+            <div class="messages" id="messageList">
+                <p class="placeholder" id="placeholder">
+                    Pick a person on the left to start a conversation.
+                </p>
+            </div>
+
+            <form class="composer" id="composer">
+                <textarea id="composerInput" class="entry" rows="1" placeholder="Type a message..." disabled></textarea>
+                <button type="submit" class="send-btn" id="sendButton" title="Send" aria-label="Send" disabled>
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M22 2L11 13"></path>
+                        <path d="M22 2l-7 20-4-9-9-4 20-7z"></path>
+                    </svg>
+                </button>
+            </form>
+            <p class="chat-error" id="chatError" role="status" aria-live="polite"></p>
+        </section>
+
+    </div>
+
+    <!-- Install prompt -->
+    <div class="install-banner hidden" id="installBanner" role="dialog" aria-label="Install app">
+        <div class="install-text">
+            <strong>Install Chat App</strong>
+            <span>Add it to your home screen and open it like a real app.</span>
+        </div>
+        <div class="install-actions">
+            <button type="button" class="btn-ghost" id="installDismiss">Not now</button>
+            <button type="button" class="btn-solid" id="installButton">Install</button>
+        </div>
+        <p class="install-help hidden" id="installHelp"></p>
+    </div>
+
+    <!-- New version available -->
+    <div class="update-note hidden" id="updateNote">
+        <span id="updateText"></span>
+        <button type="button" class="btn-solid small" id="updateButton">Reload</button>
+    </div>
+
+    <script src="js/validate.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/pwa.js"></script>
+</body>
+</html>
