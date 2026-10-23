@@ -144,3 +144,16 @@ node test-e2e.js     # registers two users, exchanges messages, checks live deli
 
 `test-e2e.js` needs the server running.
 
+There is a fourth suite that drives a real browser over the Chrome DevTools
+Protocol, so it needs Chrome or Edge installed:
+
+```bash
+npm start            # in one terminal
+npm run test:browser # in another
+```
+
+It checks that the service worker registers, that the app shell is cached and
+served while offline, that the API is never cached, that the cached files are
+the current ones, and that no page overflows horizontally on a phone-sized
+screen. It skips itself if no browser is found.
+

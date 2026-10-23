@@ -398,6 +398,7 @@ a:hover {
 }
 
 .avatar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -413,6 +414,24 @@ a:hover {
     text-transform: uppercase;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
     user-select: none;
+}
+
+/* The green dot in the corner of an avatar: the person is online now. */
+.avatar-online {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background-color: var(--ok);
+    border: 2px solid var(--panel);
+    box-sizing: content-box;
+}
+
+/* The big avatar in the conversation header, when the person is online. */
+.avatar.online {
+    box-shadow: 0 0 0 2px var(--ok), 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .icon-btn {
@@ -503,6 +522,43 @@ a:hover {
     box-shadow: var(--ring);
 }
 
+/* The row above the People list: the online filter and the online count. */
+.people-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 0 16px 10px;
+}
+
+.online-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+}
+
+.online-toggle input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.online-toggle:hover {
+    color: var(--text);
+}
+
+.people-count {
+    font-size: 12px;
+    color: var(--ok);
+    font-weight: 600;
+}
+
 
 .sidebar-body {
     flex: 1;
@@ -575,6 +631,15 @@ a:hover {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+/* The presence line under a name: grey when away, green when online. */
+.presence {
+    font-size: 12px;
+}
+
+.presence.online {
+    color: var(--ok);
 }
 
 .badge {

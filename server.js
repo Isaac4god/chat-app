@@ -28,20 +28,32 @@ const MIME = {
 // email -> Set of response objects
 const clients = new Map();
 
+// The people who are online right now: they hold a live event connection,
+// which means their browser is open on the chat screen at this moment.
+function onlineEmails() {
+    const online = new Set();
+    clients.forEach(function (set, email) {
+        if (set.size > 0) online.add(email.toLowerCase());
+    });
+    return online;
+}
+
 function addClient(email, res) {
-    if (!clients.has(email)) clients.set(email, new Set());
-    clients.get(email).add(res);
+    const key = String(email || "").toLowerCase();
+    if (!clients.has(key)) clients.set(key, new Set());
+    clients.get(key).add(res);
 }
 
 function removeClient(email, res) {
-    const set = clients.get(email);
+    const key = String(email || "").toLowerCase();
+    const set = clients.get(key);
     if (!set) return;
     set.delete(res);
-    if (set.size === 0) clients.delete(email);
+    if (set.size === 0) clients.delete(key);
 }
 
 function pushTo(email, event, data) {
-    const set = clients.get(email);
+    const set = clients.get(String(email || "").toLowerCase());
     if (!set) return;
     const payload = "event: " + event + "\ndata: " + JSON.stringify(data) + "\n\n";
     set.forEach(function (res) {
@@ -50,6 +62,20 @@ function pushTo(email, event, data) {
         } catch (error) {
             removeClient(email, res);
         }
+    });
+}
+
+// Tells everyone who is online that the list of online people has changed,
+// so their People tab can update itself.
+function broadcastPresence() {
+    const online = Array.from(onlineEmails());
+    const payload = "event: presence\ndata: " + JSON.stringify({ online: online }) + "\n\n";
+    clients.forEach(function (set) {
+        set.forEach(function (res) {
+            try {
+                res.write(payload);
+            } catch (error) { /* the client is gone; the close handler cleans up */ }
+        });
     });
 }
 
@@ -213,7 +239,9 @@ routes["GET /api/me"] = function (req, res) {
 routes["GET /api/users"] = function (req, res) {
     const auth = currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
-    sendJson(res, 200, { users: store.listUsers(auth.user.email) });
+    // Each person comes with their presence: online right now, and when they
+    // were last around if they are not.
+    sendJson(res, 200, { users: store.listUsersWithPresence(auth.user.email, onlineEmails()) });
 };
 
 routes["GET /api/conversations"] = function (req, res) {
@@ -322,12 +350,19 @@ const server = http.createServer(function (req, res) {
         });
         res.write(": connected\n\n");
         addClient(user.email, res);
+        store.touchSession(user.email);
+        broadcastPresence();
         const beat = setInterval(function () {
             try { res.write(": ping\n\n"); } catch (error) { clearInterval(beat); }
         }, 25000);
         req.on("close", function () {
             clearInterval(beat);
             removeClient(user.email, res);
+            // Remember when they were last here, but only if they are not
+            // still connected in another tab.
+            if (onlineEmails().has(user.email.toLowerCase())) return;
+            store.touchSession(user.email);
+            broadcastPresence();
         });
         return;
     }

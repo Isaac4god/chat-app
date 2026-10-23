@@ -69,10 +69,13 @@ form.addEventListener("submit", function (event) {
     API.login(email, pass).then(function (data) {
         API.setToken(data.token);
         setMessage("Welcome back, " + data.user.fullName + "!", false);
+        // Remember where to go after login, then clear it before navigating.
+        // Clearing first means a page reload during the delay cannot bounce the
+        // user back and forth between index.html and app.html.
         rememberRedirect("app.html");
+        clearRedirect();
         setTimeout(function () {
-            clearRedirect();
-            window.location.href = "app.html";
+            window.location.replace("app.html");
         }, 600);
     }).catch(function (error) {
         setMessage(error.message, true);

@@ -12,6 +12,9 @@
         searchBox: document.getElementById("searchBox"),
         tabChats: document.getElementById("tabChats"),
         tabPeople: document.getElementById("tabPeople"),
+        peopleTools: document.getElementById("peopleTools"),
+        onlineOnly: document.getElementById("onlineOnly"),
+        peopleCount: document.getElementById("peopleCount"),
         conversationList: document.getElementById("conversationList"),
         peopleList: document.getElementById("peopleList"),
         sidebarEmpty: document.getElementById("sidebarEmpty"),
@@ -37,6 +40,7 @@
         peer: null,
         tab: "chats",
         search: "",
+        onlineOnly: false,
         source: null
     };
 
@@ -46,6 +50,27 @@
         const parts = String(name || "?").trim().split(/\s+/);
         if (parts.length === 1) return parts[0].charAt(0);
         return parts[0].charAt(0) + parts[parts.length - 1].charAt(0);
+    }
+
+    // "Online", or "Last seen 5 minutes ago" for people who are not around.
+    function presenceText(user) {
+        if (user.online) return "Online";
+        const seen = user.lastSeenAt ? new Date(user.lastSeenAt) : null;
+        if (!seen || isNaN(seen.getTime())) return "Offline";
+        return "Last seen " + lastSeenAgo(seen);
+    }
+
+    function lastSeenAgo(date) {
+        const seconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+        if (seconds < 60) return "just now";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + (minutes === 1 ? " minute ago" : " minutes ago");
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + (hours === 1 ? " hour ago" : " hours ago");
+        const days = Math.floor(hours / 24);
+        if (days === 1) return "yesterday";
+        if (days < 7) return days + " days ago";
+        return date.toLocaleDateString([], { month: "short", day: "numeric" });
     }
 
     function clockTime(iso) {
@@ -84,16 +109,24 @@
             return user.email.toLowerCase() === needle;
         });
         if (found) return found;
-        return { fullName: email, email: email };
+        return { fullName: email, email: email, online: false, lastSeenAt: null };
     }
 
-    function buildRow(name, email, right, preview) {
+    function buildRow(name, email, right, preview, online) {
         const li = document.createElement("li");
         li.dataset.email = email;
 
         const avatar = document.createElement("span");
         avatar.className = "avatar";
         avatar.textContent = initials(name);
+
+        // A small dot on the avatar shows whether the person is online now.
+        if (online) {
+            const badge = document.createElement("span");
+            badge.className = "avatar-online";
+            badge.title = "Online";
+            avatar.appendChild(badge);
+        }
 
         const text = document.createElement("div");
         text.className = "row-text";
@@ -113,7 +146,7 @@
 
         if (preview) {
             const previewEl = document.createElement("span");
-            previewEl.className = "row-preview";
+            previewEl.className = online ? "row-preview presence online" : "row-preview presence";
             previewEl.textContent = preview;
             text.appendChild(previewEl);
         }
@@ -136,7 +169,9 @@
             time.className = "row-time";
             time.textContent = listTime(conv.lastMessageAt);
 
-            const li = buildRow(conv.fullName, conv.peer, time, conv.lastText);
+            // The dot on the avatar says whether the person is online now.
+            const peer = userByEmail(conv.peer);
+            const li = buildRow(conv.fullName, conv.peer, time, conv.lastText, peer.online);
 
             if (conv.unread > 0) {
                 const badge = document.createElement("span");
@@ -165,12 +200,19 @@
         const list = el.peopleList;
         list.innerHTML = "";
 
-        const visible = state.users.filter(function (user) {
+        let visible = state.users.filter(function (user) {
             return matchesSearch(user.fullName) || matchesSearch(user.email);
         });
 
+        // The toggle shows only the people who are signed in right now.
+        if (state.onlineOnly) {
+            visible = visible.filter(function (user) { return user.online; });
+        }
+
         visible.forEach(function (user) {
-            const li = buildRow(user.fullName, user.email, null, user.email);
+            // The second line says whether the person is online now, or when
+            // they were last around.
+            const li = buildRow(user.fullName, user.email, null, presenceText(user), user.online);
             if (state.peer && state.peer.toLowerCase() === user.email.toLowerCase()) {
                 li.classList.add("active");
             }
@@ -182,9 +224,19 @@
 
         const nothing = visible.length === 0;
         el.sidebarEmpty.classList.toggle("hidden", !nothing);
-        el.sidebarEmpty.textContent = state.search
-            ? "No one matches that search."
-            : "You are the only person here so far.";
+        if (state.onlineOnly && nothing) {
+            el.sidebarEmpty.textContent = "Nobody else is online right now.";
+        } else {
+            el.sidebarEmpty.textContent = state.search
+                ? "No one matches that search."
+                : "You are the only person here so far.";
+        }
+
+        // "3 online" next to the toggle, so the count is obvious.
+        if (el.peopleCount) {
+            const online = state.users.filter(function (user) { return user.online; }).length;
+            el.peopleCount.textContent = online + " online";
+        }
     }
 
     /* ---------- Rendering: message thread ---------- */
@@ -246,12 +298,17 @@
             el.peerName.textContent = "Select someone to chat with";
             el.peerStatus.textContent = "";
             el.peerAvatar.textContent = "?";
+            el.peerAvatar.classList.remove("online");
             return;
         }
         const peer = userByEmail(state.peer);
         el.peerName.textContent = peer.fullName;
-        el.peerStatus.textContent = peer.email;
+        // The line under the name says whether the person is around now.
+        el.peerStatus.textContent = peer.online
+            ? "Online"
+            : presenceText(peer);
         el.peerAvatar.textContent = initials(peer.fullName);
+        el.peerAvatar.classList.toggle("online", !!peer.online);
     }
 
     function setComposerEnabled(enabled) {
@@ -347,6 +404,20 @@
                     handleIncoming(message);
                 });
 
+                // Someone came online or went away: pull the fresh list so
+                // the People tab and the online dots update straight away.
+                source.addEventListener("presence", function (event) {
+                    try {
+                        JSON.parse(event.data);
+                    } catch (error) {
+                        return;
+                    }
+                    refreshUsers().then(function () {
+                        renderConversations();
+                        if (state.peer) updatePeerHeader();
+                    });
+                });
+
                 source.addEventListener("error", function () {
                     el.liveDot.classList.remove("online");
                     el.liveStatus.textContent = "Reconnecting...";
@@ -407,6 +478,8 @@
         el.tabPeople.classList.remove("active");
         el.conversationList.classList.remove("hidden");
         el.peopleList.classList.add("hidden");
+        // The online filter only makes sense on the People tab.
+        if (el.peopleTools) el.peopleTools.classList.add("hidden");
         renderConversations();
     });
 
@@ -416,9 +489,17 @@
         el.tabChats.classList.remove("active");
         el.conversationList.classList.add("hidden");
         el.peopleList.classList.remove("hidden");
+        if (el.peopleTools) el.peopleTools.classList.remove("hidden");
         renderPeople();
         refreshUsers();
     });
+
+    if (el.onlineOnly) {
+        el.onlineOnly.addEventListener("change", function () {
+            state.onlineOnly = el.onlineOnly.checked;
+            renderPeople();
+        });
+    }
 
     el.searchBox.addEventListener("input", function () {
         state.search = el.searchBox.value.trim().toLowerCase();
@@ -454,6 +535,9 @@
     }).catch(function (error) {
         if (error.status === 401) {
             API.setToken("");
+            // Drop any pending login redirect so the login page cannot bounce
+            // the user back to app.html and cause a refresh loop.
+            try { sessionStorage.removeItem("chat.redirect"); } catch (error) { /* ignore */ }
             window.location.replace("index.html");
             return;
         }

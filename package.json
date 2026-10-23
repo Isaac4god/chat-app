@@ -5,10 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-dom.js && node test-pwa.js && node test-e2e.js",
+    "test": "node test-dom.js && node test-pwa.js && node test-e2e.js && node test-presence.js",
     "test:dom": "node test-dom.js",
     "test:pwa": "node test-pwa.js",
     "test:e2e": "node test-e2e.js",
+    "test:presence": "node test-presence.js",
+    "test:browser": "node test-browser-pwa.js",
     "icons": "node scripts/make-icons.js"
   },
   "engines": {

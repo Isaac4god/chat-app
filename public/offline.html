@@ -2,27 +2,24 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline - Chat App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="A WhatsApp-style messaging app: register, pick a person and chat live.">
+    <meta name="theme-color" content="#0b0e14">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Chat">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .offline-wrap {
-            min-height: 100vh;
-            min-height: 100dvh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-            text-align: center;
-        }
-        .offline-card { max-width: 420px; }
-        .offline-mark { font-size: 48px; display: block; margin-bottom: 16px; }
-    </style>
+    <title>Offline - Chat App</title>
 </head>
 <body class="auth-page">
-    <main class="offline-wrap">
-        <div class="offline-card">
-            <span class="offline-mark" aria-hidden="true">&#128246;</span>
+    <main class="auth-wrap">
+        <div class="auth-card">
+            <span class="brand-mark" aria-hidden="true">&#128246;</span>
             <h1>You're offline</h1>
             <p class="subtitle">The app could not reach the chat server. Check your connection and try again.</p>
             <p><button type="button" class="submit" onclick="window.location.reload()">Try again</button></p>

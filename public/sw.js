@@ -27,16 +27,28 @@ const SHELL_ASSETS = [
     "./icons/favicon-32.png"
 ];
 
+// A last-resort answer for a page that is neither cached nor reachable, so
+// the worker always has something to respond with instead of failing.
+const OFFLINE_FALLBACK = "<!doctype html><meta charset=\"utf-8\">" +
+    "<title>Offline - Chat App</title>" +
+    "<p style=\"font-family:sans-serif;text-align:center;padding:40px\">" +
+    "You are offline. <a href=\"./index.html\">Open the chat app</a>.</p>";
+
 self.addEventListener("install", function (event) {
     event.waitUntil(
         caches.open(SHELL_CACHE).then(function (cache) {
             // addAll fails the whole install if one file 404s, so add
-            // them one by one and ignore individual misses.
+            // them one by one and ignore individual misses. The "reload"
+            // cache mode bypasses the HTTP cache, so a new release never
+            // precaches a stale copy of a file.
             return Promise.all(SHELL_ASSETS.map(function (asset) {
-                return cache.add(asset).catch(function () { return null; });
+                return cache.add(new Request(asset, { cache: "reload" }))
+                    .catch(function () { return null; });
             }));
         }).then(function () {
             return self.skipWaiting();
+        }).catch(function (error) {
+            console.warn("Could not precache the app shell", error);
         })
     );
 });
@@ -46,12 +58,14 @@ self.addEventListener("activate", function (event) {
         caches.keys().then(function (keys) {
             return Promise.all(keys.map(function (key) {
                 if (key !== SHELL_CACHE && key !== RUNTIME_CACHE) {
-                    return caches.delete(key);
+                    return caches.delete(key).catch(function () { return false; });
                 }
                 return null;
             }));
         }).then(function () {
             return self.clients.claim();
+        }).catch(function (error) {
+            console.warn("Could not clean up the old caches", error);
         })
     );
 });
@@ -64,6 +78,41 @@ self.addEventListener("message", function (event) {
 
 function isApiRequest(url) {
     return url.pathname.indexOf("/api/") === 0;
+}
+
+// A cache lookup that never rejects: a failed lookup is simply a miss.
+function lookup(cacheName, request) {
+    return caches.open(cacheName)
+        .then(function (cache) { return cache.match(request); })
+        .catch(function () { return undefined; });
+}
+
+// Finds an entry in the shell cache first, then in the runtime cache.
+function findAsset(request) {
+    return lookup(SHELL_CACHE, request).then(function (hit) {
+        if (hit) return { hit: hit, cache: SHELL_CACHE };
+        return lookup(RUNTIME_CACHE, request).then(function (runtimeHit) {
+            return { hit: runtimeHit, cache: RUNTIME_CACHE };
+        });
+    });
+}
+
+// Writes a fresh copy back into the cache that already holds the asset.
+// Refreshing "the cache that holds it" matters: the shell cache is searched
+// first, so a copy parked in the runtime cache would be shadowed by the old
+// one and the browser would keep serving the previous release for ever.
+function refreshAsset(cacheName, request, response) {
+    // The clone has to be taken while the body is still untouched, so it must
+    // happen before the response is handed to the page.
+    var copy;
+    try {
+        copy = response.clone();
+    } catch (error) {
+        return;
+    }
+    caches.open(cacheName)
+        .then(function (cache) { return cache.put(request, copy); })
+        .catch(function () { /* the cached copy stays in use */ });
 }
 
 self.addEventListener("fetch", function (event) {
@@ -83,14 +132,20 @@ self.addEventListener("fetch", function (event) {
     if (request.mode === "navigate") {
         event.respondWith(
             fetch(request).then(function (response) {
-                const copy = response.clone();
-                caches.open(SHELL_CACHE).then(function (cache) {
-                    cache.put(request, copy);
-                });
+                refreshAsset(SHELL_CACHE, request, response);
                 return response;
             }).catch(function () {
-                return caches.match(request).then(function (cached) {
-                    return cached || caches.match("./index.html") || caches.match("./offline.html");
+                return findAsset(request).then(function (found) {
+                    if (found.hit) return found.hit;
+                    return lookup(SHELL_CACHE, "./index.html").then(function (fallback) {
+                        if (fallback) return fallback;
+                        return lookup(SHELL_CACHE, "./offline.html").then(function (offline) {
+                            return offline || new Response(OFFLINE_FALLBACK, {
+                                status: 503,
+                                headers: { "Content-Type": "text/html; charset=utf-8" }
+                            });
+                        });
+                    });
                 });
             })
         );
@@ -99,33 +154,24 @@ self.addEventListener("fetch", function (event) {
 
     // Static assets: cache first, then refresh in the background.
     event.respondWith(
-        caches.match(request).then(function (cached) {
-            if (cached) {
-                const network = fetch(request).then(function (response) {
-                    if (response && response.ok) {
-                        const copy = response.clone();
-                        caches.open(RUNTIME_CACHE).then(function (cache) {
-                            cache.put(request, copy);
-                        });
-                    }
-                    return response;
-                }).catch(function () { return cached; });
-                return cached;
+        findAsset(request).then(function (found) {
+            if (found.hit) {
+                fetch(request).then(function (response) {
+                    if (response && response.ok) refreshAsset(found.cache, request, response);
+                }).catch(function () { /* keep the cached copy */ });
+                return found.hit;
             }
 
             return fetch(request).then(function (response) {
-                if (response && response.ok) {
-                    const copy = response.clone();
-                    caches.open(RUNTIME_CACHE).then(function (cache) {
-                        cache.put(request, copy);
-                    });
-                }
+                if (response && response.ok) refreshAsset(RUNTIME_CACHE, request, response);
                 return response;
             }).catch(function () {
                 // Only a page navigation can fall back to the offline page;
                 // a missing script or image must not be answered with HTML.
                 if (request.mode === "navigate") {
-                    return caches.match("./offline.html");
+                    return lookup(SHELL_CACHE, "./offline.html").then(function (offline) {
+                        return offline || new Response("", { status: 503, statusText: "Offline" });
+                    });
                 }
                 return new Response("", { status: 503, statusText: "Offline" });
             });
