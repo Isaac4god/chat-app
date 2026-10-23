@@ -1,0 +1,57 @@
+[build]
+  publish = "public"
+  command = "npm run icons"
+
+[headers]
+  # The service worker must never be cached, and it must be allowed to
+  # control the whole origin (not just /sw.js scope).
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
+
+  # The manifest must never be cached so updates reach users quickly.
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+  # Icons and other static assets can be cached aggressively.
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+  # HTML pages: short cache so navigation is fast but updates still propagate.
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=60, must-revalidate"
+
+  # CSS and JS: cached, but versioned by filename so changes bust the cache.
+  for = "/css/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+  for = "/js/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[redirects]]
+  # Root always serves the login page.
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  # Clean URLs without .html extension.
+  from = "/app"
+  to = "/app.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/register.html"
+  status = 200
+
+[[redirects]]
+  from = "/offline"
+  to = "/offline.html"
+  status = 200
