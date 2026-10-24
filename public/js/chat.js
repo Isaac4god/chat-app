@@ -261,7 +261,7 @@
 
         el.placeholder.classList.add("hidden");
 
-        const myEmail = state.me.email.toLowerCase();
+        const myEmail = (state.me && state.me.email) ? state.me.email.toLowerCase() : "";
         let lastDay = null;
 
         state.messages.forEach(function (message) {
@@ -522,10 +522,13 @@
     /* ---------- Boot ---------- */
 
     API.me().then(function (data) {
+        if (!data || !data.user) {
+            throw new Error("Invalid session. Please log in again.");
+        }
         state.me = data.user;
-        el.myName.textContent = state.me.fullName;
+        el.myName.textContent = state.me.fullName || state.me.email;
         el.myEmail.textContent = state.me.email;
-        el.myAvatar.textContent = initials(state.me.fullName);
+        el.myAvatar.textContent = initials(state.me.fullName || state.me.email);
         setComposerEnabled(false);
         renderMessages();
 
