@@ -130,12 +130,12 @@ function readBody(req) {
     });
 }
 
-function currentUser(req) {
+async function currentUser(req) {
     const token = req.headers["x-session-token"];
     if (!token) return null;
-    const session = store.getSession(token);
+    const session = await store.getSession(token);
     if (!session) return null;
-    const user = store.findUserByEmail(session.email);
+    const user = await store.findUserByEmail(session.email);
     return user ? { token: token, user: user } : null;
 }
 
@@ -184,24 +184,26 @@ function cacheControl(filePath) {
 
 const routes = {};
 
-routes["POST /api/register"] = function (req, res) {
-    readBody(req).then(function (body) {
+routes["POST /api/register"] = async function (req, res) {
+    try {
+        const body = await readBody(req);
         const fullName = String(body.fullName || "").trim();
         const email = String(body.email || "").trim();
         const password = String(body.password || "");
 
-        const error = validate.registrationError(fullName, email, password, store.findUserByEmail(email));
+        const error = validate.registrationError(fullName, email, password, await store.findUserByEmail(email));
         if (error) return sendJson(res, 400, { error: error });
 
-        const user = store.createUser(fullName, email, password);
+        const user = await store.createUser(fullName, email, password);
         sendJson(res, 201, { user: store.publicUser(user) });
-    }).catch(function (err) {
+    } catch (err) {
         sendJson(res, 400, { error: err.message });
-    });
+    }
 };
 
-routes["POST /api/login"] = function (req, res) {
-    readBody(req).then(function (body) {
+routes["POST /api/login"] = async function (req, res) {
+    try {
+        const body = await readBody(req);
         const email = String(body.email || "").trim();
         const password = String(body.password || "");
 
@@ -209,7 +211,7 @@ routes["POST /api/login"] = function (req, res) {
             return sendJson(res, 400, { error: "Enter a valid Gmail address (example@gmail.com)." });
         }
 
-        const user = store.findUserByEmail(email);
+        const user = await store.findUserByEmail(email);
         if (!user) {
             return sendJson(res, 401, { error: "No account found for this Gmail. Register first." });
         }
@@ -217,16 +219,16 @@ routes["POST /api/login"] = function (req, res) {
             return sendJson(res, 401, { error: "Incorrect password. Please try again." });
         }
 
-        const token = store.createSession(user.email);
+        const token = await store.createSession(user.email);
         sendJson(res, 200, { token: token, user: store.publicUser(user) });
-    }).catch(function (err) {
+    } catch (err) {
         sendJson(res, 400, { error: err.message });
-    });
+    }
 };
 
-routes["POST /api/logout"] = function (req, res) {
-    const auth = currentUser(req);
-    if (auth) store.destroySession(auth.token);
+routes["POST /api/logout"] = async function (req, res) {
+    const auth = await currentUser(req);
+    if (auth) await store.destroySession(auth.token);
     sendJson(res, 200, { ok: true });
 };
 
@@ -236,79 +238,71 @@ routes["GET /api/me"] = function (req, res) {
     sendJson(res, 200, { user: store.publicUser(auth.user) });
 };
 
-routes["GET /api/users"] = function (req, res) {
-    const auth = currentUser(req);
+routes["GET /api/users"] = async function (req, res) {
+    const auth = await currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
-    // Each person comes with their presence: online right now, and when they
-    // were last around if they are not.
-    sendJson(res, 200, { users: store.listUsersWithPresence(auth.user.email, onlineEmails()) });
+    sendJson(res, 200, { users: await store.listUsersWithPresence(auth.user.email, onlineEmails()) });
 };
 
-routes["GET /api/conversations"] = function (req, res) {
-    const auth = currentUser(req);
+routes["GET /api/conversations"] = async function (req, res) {
+    const auth = await currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
-    sendJson(res, 200, { conversations: store.getConversations(auth.user.email) });
+    sendJson(res, 200, { conversations: await store.getConversations(auth.user.email) });
 };
 
-routes["GET /api/messages"] = function (req, res, query) {
-    const auth = currentUser(req);
+routes["GET /api/messages"] = async function (req, res, query) {
+    const auth = await currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
 
     const peer = String(query.peer || "").trim();
     if (!peer) return sendJson(res, 400, { error: "A peer is required." });
-    if (!store.findUserByEmail(peer)) {
+    if (!await store.findUserByEmail(peer)) {
         return sendJson(res, 404, { error: "That person is not on this app." });
     }
 
-    const messages = store.getConversation(auth.user.email, peer);
-    store.markRead(auth.user.email, peer);
+    const messages = await store.getConversation(auth.user.email, peer);
+    await store.markRead(auth.user.email, peer);
     sendJson(res, 200, { messages: messages });
 };
 
-routes["POST /api/read"] = function (req, res) {
-    const auth = currentUser(req);
+routes["POST /api/read"] = async function (req, res) {
+    const auth = await currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
 
-    readBody(req).then(function (body) {
-        const peer = String(body.peer || "").trim();
-        if (!peer) return sendJson(res, 400, { error: "A peer is required." });
-        store.markRead(auth.user.email, peer);
-        sendJson(res, 200, { ok: true });
-    }).catch(function (err) {
-        sendJson(res, 400, { error: err.message });
-    });
+    const body = await readBody(req);
+    const peer = String(body.peer || "").trim();
+    if (!peer) return sendJson(res, 400, { error: "A peer is required." });
+    await store.markRead(auth.user.email, peer);
+    sendJson(res, 200, { ok: true });
 };
 
-routes["POST /api/messages"] = function (req, res) {
-    const auth = currentUser(req);
+routes["POST /api/messages"] = async function (req, res) {
+    const auth = await currentUser(req);
     if (!auth) return sendJson(res, 401, { error: "Not signed in" });
 
-    readBody(req).then(function (body) {
-        const to = String(body.to || "").trim();
-        const text = String(body.text || "").trim();
+    const body = await readBody(req);
+    const to = String(body.to || "").trim();
+    const text = String(body.text || "").trim();
 
-        if (!to) return sendJson(res, 400, { error: "A recipient is required." });
-        if (!text) return sendJson(res, 400, { error: "Type a message first." });
-        if (text.length > 4000) return sendJson(res, 400, { error: "Message is too long." });
+    if (!to) return sendJson(res, 400, { error: "A recipient is required." });
+    if (!text) return sendJson(res, 400, { error: "Type a message first." });
+    if (text.length > 4000) return sendJson(res, 400, { error: "Message is too long." });
 
-        const recipient = store.findUserByEmail(to);
-        if (!recipient) return sendJson(res, 404, { error: "That person is not on this app." });
+    const recipient = await store.findUserByEmail(to);
+    if (!recipient) return sendJson(res, 404, { error: "That person is not on this app." });
 
-        const message = store.createMessage(auth.user.email, recipient.email, text);
+    const message = await store.createMessage(auth.user.email, recipient.email, text);
 
-        // Deliver live to the recipient and echo to the sender's other tabs.
-        pushTo(recipient.email, "message", message);
-        pushTo(auth.user.email, "message", message);
+    // Deliver live to the recipient and echo to the sender's other tabs.
+    pushTo(recipient.email, "message", message);
+    pushTo(auth.user.email, "message", message);
 
-        sendJson(res, 201, { message: message });
-    }).catch(function (err) {
-        sendJson(res, 400, { error: err.message });
-    });
+    sendJson(res, 201, { message: message });
 };
 
 /* ---------- Dispatch ---------- */
 
-const server = http.createServer(function (req, res) {
+const server = http.createServer(async function (req, res) {
     const parsed = url.parse(req.url, true);
     const pathname = parsed.pathname;
     const query = parsed.query;
@@ -335,8 +329,8 @@ const server = http.createServer(function (req, res) {
     if (pathname === "/api/events") {
         // EventSource cannot send custom headers, so the token comes via the query string.
         const token = query.token || req.headers["x-session-token"];
-        const session = store.getSession(token);
-        const user = session ? store.findUserByEmail(session.email) : null;
+        const session = await store.getSession(token);
+        const user = session ? await store.findUserByEmail(session.email) : null;
         if (!user) {
             res.writeHead(401, { "Content-Type": "text/plain" });
             res.end("Not signed in");
@@ -350,7 +344,7 @@ const server = http.createServer(function (req, res) {
         });
         res.write(": connected\n\n");
         addClient(user.email, res);
-        store.touchSession(user.email);
+        await store.touchSession(user.email);
         broadcastPresence();
         const beat = setInterval(function () {
             try { res.write(": ping\n\n"); } catch (error) { clearInterval(beat); }
@@ -369,7 +363,7 @@ const server = http.createServer(function (req, res) {
 
     const handler = routes[key];
     if (handler) {
-        handler(req, res, query, cors);
+        await handler(req, res, query, cors);
         return;
     }
 
