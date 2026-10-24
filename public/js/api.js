@@ -33,7 +33,7 @@
     //   3. same origin, if it really answers /api/health
     //   4. http://localhost:3000   (the default port of the Node server)
     const BASE_KEY = "chat.apiBase";
-    const FALLBACK_BASE = "http://localhost:3000";
+    const FALLBACK_BASE = "https://chat-app-backend-wg29.onrender.com";
 
     function normalizeBase(value) {
         return String(value || "").replace(/\/+$/, "");
