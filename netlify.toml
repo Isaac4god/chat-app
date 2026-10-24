@@ -1,6 +1,6 @@
 [build]
   publish = "public"
-  command = "npm run icons"
+  command = ""
 
 [[redirects]]
   # Single-page app: serve index.html for all routes
