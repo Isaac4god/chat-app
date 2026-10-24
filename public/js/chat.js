@@ -536,7 +536,7 @@
     }).then(function () {
         connectLive();
     }).catch(function (error) {
-        if (error.status === 401) {
+        if (error.status === 401 || error.message === "Invalid session. Please log in again.") {
             API.setToken("");
             // Drop any pending login redirect so the login page cannot bounce
             // the user back to app.html and cause a refresh loop.
